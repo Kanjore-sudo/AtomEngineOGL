@@ -3,21 +3,30 @@
 #pragma once
 
 #include <iostream>
-#include <Windows.h>
-#include <d2d1.h>
-#include <wincodec.h>
 #include <string>
 #include <vector>
 #include <map>
+#include <memory>
 #include "AtomMath.hpp"
 
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
 
 namespace AtomEngine
 {
 	class AtomError
 	{
 	public:
-		AtomError(const LPCWSTR error);
+		AtomError(const std::string& error, const char* file = __FILE__, int line = __LINE__, const char* func = __FUNCTION__);
+	};
+
+	class Shader
+	{
+	public:
+		GLuint ID;
+		Shader(const char* vertexPath, const char* fragmentPath);
+		void use();
+		void setMat4(const std::string& name, const float* value);
 	};
 
 
@@ -27,36 +36,14 @@ namespace AtomEngine
 
 	class Window {
 	protected:
-		std::wstring className;
-		std::wstring title;
-		int width;
-		int height;
-
-		HINSTANCE hInstance;
-		HWND hWnd;
-
-		ID2D1Factory* pFactory = nullptr;
-		
-
-		static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-
-
+		GLFWwindow* window;
 	public:
-		ID2D1HwndRenderTarget* pRenderTarget = nullptr;
-		Window(std::wstring className, std::wstring title, int w, int h);
+		int width, height;
+		Window(const std::string& title, int w, int h);
 		~Window();
-
 		bool Create();
-
-		HRESULT InitDirect2D();
-
-		HRESULT AtomLoadImage(ID2D1HwndRenderTarget* renderTarget, const wchar_t* ruta, ID2D1Bitmap** ppBitmap);
-	
-
-		void showWindow();
-
-		int ProcesInit(GameObject* scene);
-
+		void Show();
+		int Run(GameObject* scene);
 	};
 
 	//Objeto Textura
@@ -88,18 +75,20 @@ namespace AtomEngine
 	class Texture
 	{
 	protected:
-		
-		LPCWSTR path = L"";
+		std::string path;
+		int width, height, channels;
+		unsigned char* data = nullptr;
 
 	public:
-		ID2D1Bitmap* bitmap = nullptr;
+		GLuint textureID = 0;
 		Texture() {}
-		Texture(LPCWSTR path);
+		Texture(const std::string& path);
 
-		void SetBitmap(ID2D1Bitmap* bitmap);
-
-		LPCWSTR GetPath();
-		ID2D1Bitmap** GetBitMap();
+		bool Load();
+		void Bind();
+		std::string GetPath() { return path; }
+		int GetWidth() { return width; }
+		int GetHeight() { return height; }
 	};
 
 	class TextureManager
@@ -117,7 +106,7 @@ namespace AtomEngine
 		TextureManager(std::string _name, Game* _game);
 		~TextureManager() {};
 
-		void NewTexture(std::string _name, LPCWSTR _path);
+		void NewTexture(std::string _name, const std::string& _path);
 		std::vector<Texture> GetTextureQueue();
 		std::vector<std::string> GetTextureNamesQueue();
 
@@ -129,21 +118,18 @@ namespace AtomEngine
 	class Game
 	{
 	protected:
-		std::wstring name;
-		int width;
-		int height;
+		std::string name;
+		int width, height;
 		Window* wnd = nullptr;
-		bool isLoading;
-
+		bool isLoading = false;
 
 	public:
-		TextureManager* tm;
-		Game(std::wstring, int w, int h);
-		~Game() {};
+		TextureManager* tm = nullptr;
+		Game(const std::string& name, int w, int h);
+		~Game();
 
-		//Game(std::wstring name, int w, int h);
 		void SetTextureManager(TextureManager* tm);
-		void LoadBitmaps();
+		void LoadTextures();
 		void Run(GameObject* scene);
 		bool IsLoading();
 		Window* GetWindow();
@@ -188,11 +174,8 @@ namespace AtomEngine
 
 	class Sprite : public Atom2D
 	{
-
 	protected:
-		Window* window = nullptr;
 		Texture* texture = nullptr;
-		LPCWSTR path;
 
 	public:
 		Sprite(Texture* _texture);
